@@ -31,7 +31,7 @@ def create_tables(db_name):
         cursor.execute("""create table users (
         id serial,
         username varchar(255),
-        hashed_password varchar(60),
+        hashed_password varchar(80),
         primary key(id)
         );
         create table messages (

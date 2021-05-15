@@ -1,5 +1,6 @@
 import random
 import string
+import hashlib
 
 
 def hash_password(password, salt=None):
