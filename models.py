@@ -1,3 +1,5 @@
+import datetime
+
 from clcrypto import hash_password
 from psycopg2 import connect
 
@@ -61,6 +63,7 @@ class User:
             loaded_user._id = id_
             loaded_user._hashed_password = hashed_password
             return loaded_user
+        return None
 
     @staticmethod
     def load_all_users(cursor):
@@ -84,45 +87,53 @@ class User:
 
 
 class Messages:
-    def __init__(self, from_id="", to_id="", text="", creation_data=""):
+    def __init__(self, from_id, to_id, text):
         self._id = -1
         self.to_id = to_id
         self.from_id = from_id
         self.text = text
-        self.creation_data = None
+        self._creation_date = None
 
     @property
     def id(self):
         return self._id
 
+    @property
+    def creation_date(self):
+        return self._creation_date
+
+    @creation_date.setter
+    def creation_date(self, creation_date):
+        self._creation_date = creation_date
+
     def save_to_db(self, cursor):
         if self._id == -1:
-            sql = """INSERT INTO messages(from_id, to_id, text, creation_data)
-                            VALUES(%s, %s, %s, %s) RETURNING id"""
-            values = (self.from_id, self.to_id, self.text, self.creation_data)
+            sql = """INSERT INTO messages(from_id, to_id, text)
+                            VALUES(%s, %s, %s) RETURNING id, creation_date"""
+            values = (self.from_id, self.to_id, self.text)
             cursor.execute(sql, values)
-            self._id = cursor.fetchone()[0]  # or cursor.fetchone()['id']
+            self._id, self.creation_date = cursor.fetchone()
             return True
         else:
-            sql = """UPDATE Users SET from_id=%s, to_id=%s, text=%s, creation_data=%s
-                           WHERE id=%s"""
-            values = (self.from_id, self.to_id, self.text, self.creation_data, self.id)
+            sql = "UPDATE Users SET from_id=%s, to_id=%s, text=%s WHERE id=%s"
+            values = (self.from_id, self.to_id, self.text, self.id)
             cursor.execute(sql, values)
             return True
 
     @staticmethod
-    def load_all_messages(cursor):
-        sql = "SELECT id, from_id, to_id, text, creation_data FROM Messages"
+    def load_all_messages(cursor, user_id=None):
+        if user_id:
+            sql = "SELECT id, from_id, to_id, text, creation_date FROM Messages where to_id=%s"
+            cursor.execute(sql, (user_id, ))
+        else:
+            sql = "SELECT id, from_id, to_id, text, creation_data FROM Messages"
+            cursor.execute(sql)
         messages = []
-        cursor.execute(sql)
         for row in cursor.fetchall():
-            id_, from_id, to_id, text, creation_data = row
-            loaded_messages = Messages()
+            id_, from_id, to_id, text, creation_date = row
+            loaded_messages = Messages(from_id, to_id, text)
             loaded_messages._id = id_
-            loaded_messages.from_id = from_id
-            loaded_messages.t_id = to_id
-            loaded_messages.text = text
-            loaded_messages.creation_data = creation_data
+            loaded_messages.creation_date = creation_date
             messages.append(loaded_messages)
         return messages
 
@@ -136,20 +147,20 @@ if __name__ == '__main__':
     cnx.autocommit = True
     cursor = cnx.cursor()
 
-    man = User("gargamel", "kotrudy")
+    man = User("jacek1", "kotrudy")
     man.save_to_db(cursor)
 
-    obj = User.load_user_by_id(cursor, 51)
+    obj = User.load_user_by_id(cursor, 1)
     print(obj.id, obj.username, obj.hashed_password)
 
-    obj2 = User.load_user_by_name(cursor, 'gargamel')
+    obj2 = User.load_user_by_name(cursor, 'jacek')
     print(obj2.id, obj2.username, obj2.hashed_password)
 
     allusers = User.load_all_users(cursor)
     print(len(allusers))
-    print(allusers[4].username)
+    # print(allusers[4].username)
 
-    obj.username = "zmiana"
+    # obj.username = "zmiana"
     obj.save_to_db(cursor)
     print(obj.id)
 
