@@ -22,10 +22,10 @@ def list_messages(cursor, username, password):
     if not user:
         print("User does not exist.")
     elif check_password(password, user.hashed_password):
-        messsages = Messages.load_all_messages(cursor, user.id)
-        for message in messsages:
+        messages = Messages.load_all_messages(cursor, user.id)
+        for message in messages:
             sender = User.load_user_by_id(cursor, message.from_id)
-            print(f"{sender.username, message.text, message.creation_date}")
+            print(f"From: {sender.username}\n{message.text}\nDate: {message.creation_date}\n-----------------------------------------------------------------------------")
     else:
         print("Incorrect password.")
 
@@ -42,18 +42,26 @@ def send_message(cursor, username, password, to_user, content):
             if len(content) < 255:
                 message = Messages(from_id=user.id, to_id=user2.id, text=content)
                 message.save_to_db(cursor)
+                print("Message send.")
+            else:
+                print("Your message is too long, maximum 254 characters.")
     else:
         print("Incorrect password.")
 
 
 if __name__ == '__main__':
-    cnx = connect(user="postgres", password="coderslab", host="localhost", database='users_db')
-    cnx.autocommit = True
-    cursor = cnx.cursor()
+    try:
+        cnx = connect(user="postgres", password="coderslab", host="localhost", database='users_db')
+        cnx.autocommit = True
+        cursor = cnx.cursor()
 
-    list_messages(cursor, username, password)
-
-    send_message(cursor, username, password, to_user, content)
-
-    cursor.close()
-    cnx.close()
+        if username and password and to_user and content:
+            send_message(cursor, username, password, to_user, content)
+        elif username and password and args.list:
+            list_messages(cursor, username, password)
+        else:
+            parser.print_help()
+        cursor.close()
+        cnx.close()
+    except OperationalError as e:
+        print("Connection error. ", e)
